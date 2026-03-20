@@ -51,7 +51,7 @@ echo "Campaign created: $SLUG -> $DEST_URL"
 QR_URL="https://michaello-ts.github.io/Qr_code/$SLUG/"
 python3 -c "
 import qrcode
-qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=4)
+qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4)
 qr.add_data('$QR_URL')
 qr.make(fit=True)
 img = qr.make_image(fill_color='black', back_color='white')

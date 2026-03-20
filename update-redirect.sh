@@ -2,6 +2,9 @@
 # Usage: ./update-redirect.sh [slug] [new-url]
 # Example: ./update-redirect.sh henderson-summer2026 https://example.com/new-page
 
+# Always run from the project folder, no matter where you call this from
+cd "$(dirname "$0")"
+
 SLUG=$1
 NEW_URL=$2
 
@@ -17,7 +20,7 @@ fi
 # Check folder exists
 if [ ! -d "$SLUG" ]; then
   echo ""
-  echo "❌ Campaign folder '$SLUG' not found."
+  echo "Campaign folder '$SLUG' not found."
   echo "Available campaigns:"
   ls -d */ 2>/dev/null | grep -v -e "^\." | sed 's/\///'
   echo ""
@@ -31,6 +34,7 @@ cat > "$SLUG/index.html" <<EOF
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="refresh" content="0; url=$NEW_URL">
+  <script>window.location.replace("$NEW_URL");</script>
   <title>Redirecting...</title>
 </head>
 <body>
@@ -40,7 +44,7 @@ cat > "$SLUG/index.html" <<EOF
 EOF
 
 echo ""
-echo "✅ Redirect updated: $SLUG → $NEW_URL"
+echo "Redirect updated: $SLUG -> $NEW_URL"
 
 # Git commit and push
 eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -49,6 +53,6 @@ git commit -m "redirect: update $SLUG"
 git push
 
 echo ""
-echo "🚀 Pushed to GitHub. Live in ~30 seconds."
-echo "🔗 https://michaello-ts.github.io/Qr_code/$SLUG/"
+echo "Pushed to GitHub. Live in ~30 seconds."
+echo "https://michaello-ts.github.io/Qr_code/$SLUG/"
 echo ""

@@ -72,12 +72,31 @@ Replace `TARGET_URL_HERE` with the actual destination URL.
 
 ---
 
+## Generating QR Codes
+
+Three helper scripts handle everything (run them from the project folder):
+
+| Script | What it does |
+|--------|--------------|
+| `./add-campaign.sh [slug] [destination-url]` | Creates a new campaign folder + redirect page, makes a plain black/white QR, commits and pushes. |
+| `./update-redirect.sh [slug] [new-url]` | Changes where an existing campaign points (QR stays the same), commits and pushes. |
+| `./add-logo-qr.sh [slug] [logo-name]` | Regenerates a campaign's QR with a **logo in the center** (social-media style), commits and pushes. |
+
+### Logo QR codes (`add-logo-qr.sh`)
+
+- Logo images live in the **`logos/`** folder. Pick one by name, no file extension — e.g. `logos/instagram.png` is used as `instagram`.
+- Example: `./add-logo-qr.sh henderson-summer2026 instagram`
+- It replaces that campaign's `qr-[slug].png` with the logo version (old one stays in git history). The campaign URL the QR points to does **not** change.
+- Image work is done by `make-logo-qr.py` (called automatically). It uses highest error-correction (`ERROR_CORRECT_H`) and sizes the logo to ~22% of the QR on a white rounded badge, so it stays scannable.
+- Supported logo types: png, jpg, jpeg, webp. Square images look best. See `logos/README.md`.
+
 ## Commit Message Format
 
 | Action | Format | Example |
 |--------|--------|---------|
 | New campaign | `redirect: add [slug]` | `redirect: add summer-sale` |
 | Update destination | `redirect: update [slug]` | `redirect: update summer-sale` |
+| Logo QR | `redirect: add logo QR for [slug]` | `redirect: add logo QR for summer-sale` |
 
 ---
 
@@ -100,3 +119,8 @@ Base: `https://michaello-TS.github.io/Qr_code/`
 | Campaign Slug | QR Code URL |
 |---------------|-------------|
 | henderson-summer2026 | `https://michaello-TS.github.io/Qr_code/henderson-summer2026/` |
+
+## INVARIANTS (never break these)
+- QR codes point to GitHub Pages URLs, never to final destination URLs
+- Campaign slugs: lowercase, hyphens only, no spaces or special characters
+- Every campaign index.html must use meta refresh tag (not JS redirect)

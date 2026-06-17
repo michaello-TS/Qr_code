@@ -82,11 +82,16 @@ Three helper scripts handle everything (run them from the project folder):
 | `./update-redirect.sh [slug] [new-url]` | Changes where an existing campaign points (QR stays the same), commits and pushes. |
 | `./add-logo-qr.sh [slug] [logo-name]` | Regenerates a campaign's QR with a **logo in the center** (social-media style), commits and pushes. |
 
+All generated QR **images** are stored together in the **`qr-codes/`** folder
+(named `qr-[slug].png`). Each campaign folder holds only its `index.html`
+redirect page — the redirect pages must stay at their own URL paths, the images
+do not.
+
 ### Logo QR codes (`add-logo-qr.sh`)
 
 - Logo images live in the **`logos/`** folder. Pick one by name, no file extension — e.g. `logos/instagram.png` is used as `instagram`.
 - Example: `./add-logo-qr.sh henderson-summer2026 instagram`
-- It replaces that campaign's `qr-[slug].png` with the logo version (old one stays in git history). The campaign URL the QR points to does **not** change.
+- It replaces that campaign's `qr-codes/qr-[slug].png` with the logo version (old one stays in git history). The campaign URL the QR points to does **not** change.
 - Image work is done by `make-logo-qr.py` (called automatically). It uses highest error-correction (`ERROR_CORRECT_H`) and sizes the logo to ~22% of the QR on a white rounded badge, so it stays scannable.
 - Supported logo types: png, jpg, jpeg, webp. Square images look best. See `logos/README.md`.
 

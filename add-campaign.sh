@@ -47,7 +47,8 @@ EOF
 echo ""
 echo "Campaign created: $SLUG -> $DEST_URL"
 
-# Generate QR code
+# Generate QR code (all QR images are stored together in qr-codes/)
+mkdir -p qr-codes
 QR_URL="https://michaello-ts.github.io/Qr_code/$SLUG/"
 python3 -c "
 import qrcode
@@ -55,18 +56,18 @@ qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L,
 qr.add_data('$QR_URL')
 qr.make(fit=True)
 img = qr.make_image(fill_color='black', back_color='white')
-img.save('$SLUG/qr-$SLUG.png')
+img.save('qr-codes/qr-$SLUG.png')
 " 2>/dev/null
 
 if [ $? -eq 0 ]; then
-  echo "QR code saved: $SLUG/qr-$SLUG.png"
+  echo "QR code saved: qr-codes/qr-$SLUG.png"
 else
   echo "QR code skipped (install with: pip3 install 'qrcode[pil]')"
 fi
 
 # Git commit and push
 eval "$(/opt/homebrew/bin/brew shellenv)"
-git add "$SLUG/"
+git add "$SLUG/" qr-codes/
 git commit -m "redirect: add $SLUG"
 git push
 

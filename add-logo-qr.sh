@@ -4,7 +4,7 @@
 #
 # Makes a QR code for an existing campaign with a logo in the center.
 # Put your logo image in the logos/ folder first (see logos/README.md).
-# This replaces that campaign's qr-[slug].png with the logo version and
+# This replaces that campaign's qr-codes/qr-[slug].png with the logo version and
 # pushes it to GitHub. The campaign URL the QR points to does NOT change.
 
 # Always run from the project folder, no matter where you call this from
@@ -62,7 +62,8 @@ fi
 
 # The QR points to the campaign's GitHub Pages URL (never the final destination)
 QR_URL="https://michaello-ts.github.io/Qr_code/$SLUG/"
-OUT="$SLUG/qr-$SLUG.png"
+mkdir -p qr-codes
+OUT="qr-codes/qr-$SLUG.png"
 
 if [ -f "$OUT" ]; then
   echo "Replacing existing $OUT with a logo version (old one stays in git history)."

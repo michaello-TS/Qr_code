@@ -85,9 +85,27 @@
     <p class="hint">Lowercase letters, numbers and hyphens only.</p>
     <label for="newDest">Where should it send people? (you can change this anytime)</label>
     <input type="url" id="newDest" placeholder="https://...">
-    <label for="newLogo">QR style</label>
-    <select id="newLogo"><option value="">Plain black & white</option></select>
+    <label for="newStyle">QR style</label>
+    <select id="newStyle">
+      <option value="classic">Classic black & white</option>
+      <option value="social">Social gradient</option>
+      <option value="artwork">Multi-color artwork fill</option>
+    </select>
+    <div id="newPaletteWrap" hidden>
+      <label for="newPalette">Colors</label>
+      <select id="newPalette"></select>
+      <div id="newCustomWrap" hidden>
+        <label>Pick your colors</label>
+        <input type="color" id="newC1" value="#833AB4">
+        <input type="color" id="newC2" value="#E1306C">
+        <input type="color" id="newC3" value="#F58529">
+        <p class="hint">Third color = corner accent (gradient style) or third sweep color (artwork).</p>
+      </div>
+    </div>
+    <label for="newLogo">Logo</label>
+    <select id="newLogo"><option value="">No logo</option></select>
     <input type="file" id="newLogoFile" accept="image/png,image/jpeg,image/webp" hidden style="margin-top:8px">
+    <div id="newPreview" class="qrbox"></div>
     <button id="createBtn" onclick="createCampaign()">Create campaign & QR code</button>
     <div id="createMsg"></div>
     <div id="createQr" class="qrbox"></div>
@@ -191,39 +209,33 @@ function redirectHtml(url) {
 `;
 }
 
-// ---------- QR drawing (matches make-logo-qr.py: EC-H + logo ~22% on white rounded badge) ----------
-function makeQrCanvas(url, ecLevel, logoImg) {
-  const qr = qrcode(0, ecLevel);
-  qr.addData(url);
-  qr.make();
-  const n = qr.getModuleCount(), box = 10, border = 4;
-  const size = (n + border * 2) * box;
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = '#000';
-  for (let r = 0; r < n; r++)
-    for (let col = 0; col < n; col++)
-      if (qr.isDark(r, col))
-        ctx.fillRect((border + col) * box, (border + r) * box, box, box);
-
-  if (logoImg) {
-    const target = Math.floor(size * 0.22);
-    const scale = Math.min(target / logoImg.width, target / logoImg.height, 1);
-    const lw = Math.round(logoImg.width * scale), lh = Math.round(logoImg.height * scale);
-    const pad = Math.max(6, Math.round(target * 0.16));
-    const bw = lw + pad * 2, bh = lh + pad * 2;
-    const bx = (size - bw) / 2, by = (size - bh) / 2;
-    const rad = Math.round(Math.min(bw, bh) * 0.22);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.roundRect(bx, by, bw, bh, rad);
-    ctx.fill();
-    ctx.drawImage(logoImg, bx + pad, by + pad, lw, lh);
-  }
-  return c;
+// ---------- QR style form helpers (drawing lives in qr-styles.js) ----------
+function populatePalette(sel, styleId) {
+  sel.innerHTML = QR_PALETTES[styleId].map(p => `<option value="${p.id}">${p.name}</option>`).join('') +
+    '<option value="@custom">Custom colors…</option>';
+}
+function currentStyleConfig(prefix) {
+  const styleId = document.getElementById(prefix + 'Style').value;
+  if (styleId === 'classic') return { styleId, palette: null, custom: false };
+  const pid = document.getElementById(prefix + 'Palette').value;
+  if (pid !== '@custom')
+    return { styleId, palette: QR_PALETTES[styleId].find(p => p.id === pid), custom: false };
+  const c = i => document.getElementById(prefix + 'C' + i).value;
+  return {
+    styleId, custom: true,
+    palette: styleId === 'social' ? { body: [c(1), c(2)], eye: c(3) } : { stops: [c(1), c(2), c(3)] },
+  };
+}
+async function refreshPreview() {
+  const slug = document.getElementById('newSlug').value.trim() || 'preview';
+  const cfg = currentStyleConfig('new');
+  let logo = null;
+  try { logo = await logoImageFor(document.getElementById('newLogo').value); } catch (e) {}
+  const canvas = drawStyledQr(CFG.base + slug + '/', cfg.styleId, cfg.palette, logo);
+  canvas.style.maxWidth = '240px';
+  const box = document.getElementById('newPreview');
+  box.innerHTML = '';
+  box.appendChild(canvas);
 }
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -262,9 +274,9 @@ async function loadAll() {
 
   LOGOS = TREE.filter(e => e.type === 'blob' && /^logos\/.+\.(png|jpe?g|webp)$/i.test(e.path)).map(e => e.path);
   const logoSel = document.getElementById('newLogo');
-  logoSel.innerHTML = '<option value="">Plain black & white</option>' +
-    LOGOS.map(p => `<option value="${p}">Logo in center: ${p.replace(/^logos\//, '').replace(/\.[^.]+$/, '')}</option>`).join('') +
-    '<option value="@upload">Logo in center: upload from this device…</option>';
+  logoSel.innerHTML = '<option value="">No logo</option>' +
+    LOGOS.map(p => `<option value="${p}">${p.replace(/^logos\//, '').replace(/\.[^.]+$/, '')}</option>`).join('') +
+    '<option value="@upload">Upload from this device…</option>';
 
   const qrSet = new Set(TREE.filter(e => /^qr-codes\/.+\.png$/.test(e.path)).map(e => e.path));
   const pages = TREE.filter(e =>
@@ -288,6 +300,7 @@ async function loadAll() {
   }));
   CAMPAIGNS.sort((a, b) => a.slug.localeCompare(b.slug));
   renderList();
+  refreshPreview();
 }
 
 function renderList() {
@@ -299,7 +312,7 @@ function renderList() {
       <div class="dest">sends people to → <a href="${c.dest}" target="_blank" rel="noopener">${c.dest || '(unknown)'}</a></div>
       <div class="dest">QR link: <a href="${CFG.base + c.slug}/" target="_blank" rel="noopener">${CFG.base + c.slug}/</a></div>
       <button class="small secondary" onclick="toggleEdit(${i})">Change destination</button>
-      <button class="small secondary" onclick="toggleLogo(${i})">New logo QR</button>
+      <button class="small secondary" onclick="toggleLogo(${i})">Restyle QR</button>
       ${c.hasQr ? `<button class="small secondary" onclick="showQr(${i})">View QR</button>` : ''}
       <div id="edit-${i}" class="inline-form" hidden>
         <label>New destination for <b>${c.slug}</b> (QR code stays the same)</label>
@@ -308,9 +321,25 @@ function renderList() {
         <div id="editMsg-${i}"></div>
       </div>
       <div id="logo-${i}" class="inline-form" hidden>
-        <label>Remake this campaign's QR image with a logo in the center</label>
-        <select id="logoSel-${i}">${LOGOS.map(p => `<option value="${p}">${p.replace(/^logos\//, '').replace(/\.[^.]+$/, '')}</option>`).join('')}</select>
-        <button class="small" onclick="makeLogoQr(${i})">Make logo QR</button>
+        <label>Remake this campaign's QR image (the link it scans to stays the same)</label>
+        <select id="re${i}Style" onchange="restyleControls(${i})">
+          <option value="classic">Classic black & white</option>
+          <option value="social">Social gradient</option>
+          <option value="artwork">Multi-color artwork fill</option>
+        </select>
+        <div id="re${i}PaletteWrap" hidden>
+          <select id="re${i}Palette" onchange="restyleControls(${i})" style="margin-top:8px"></select>
+          <div id="re${i}CustomWrap" hidden>
+            <input type="color" id="re${i}C1" value="#833AB4">
+            <input type="color" id="re${i}C2" value="#E1306C">
+            <input type="color" id="re${i}C3" value="#F58529">
+          </div>
+        </div>
+        <select id="re${i}Logo" style="margin-top:8px">
+          <option value="">No logo</option>
+          ${LOGOS.map(p => `<option value="${p}">${p.replace(/^logos\//, '').replace(/\.[^.]+$/, '')}</option>`).join('')}
+        </select>
+        <button class="small" onclick="restyleQr(${i})">Remake QR image</button>
         <div id="logoMsg-${i}"></div>
       </div>
       <div id="qr-${i}" class="qrbox" hidden></div>
@@ -353,8 +382,11 @@ async function createCampaign() {
 
     btn.disabled = true; btn.textContent = 'Creating…';
     const qrUrl = CFG.base + slug + '/';
+    const cfg = currentStyleConfig('new');
     const logoImg = await logoImageFor(logoChoice);
-    const canvas = makeQrCanvas(qrUrl, logoImg ? 'H' : 'M', logoImg);
+    const canvas = drawStyledQr(qrUrl, cfg.styleId, cfg.palette, logoImg);
+    if (cfg.styleId !== 'classic' && cfg.custom && scanCheck(canvas) !== qrUrl)
+      throw new Error('These colors are too light for scanners — darken them.');
 
     await putFile(`${slug}/index.html`, b64encode(redirectHtml(dest)), `redirect: add ${slug}`);
     await putFile(`qr-codes/qr-${slug}.png`, canvasBase64(canvas), `redirect: add ${slug}`);
@@ -403,18 +435,34 @@ async function updateDest(i) {
   }
 }
 
-async function makeLogoQr(i) {
+function restyleControls(i) {
+  const styleId = document.getElementById(`re${i}Style`).value;
+  const wrap = document.getElementById(`re${i}PaletteWrap`);
+  wrap.hidden = styleId === 'classic';
+  if (styleId !== 'classic') {
+    const sel = document.getElementById(`re${i}Palette`);
+    const keep = sel.value;
+    populatePalette(sel, styleId);
+    if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+    document.getElementById(`re${i}CustomWrap`).hidden = sel.value !== '@custom';
+  }
+}
+
+async function restyleQr(i) {
   const c = CAMPAIGNS[i];
-  const logoPath = document.getElementById(`logoSel-${i}`).value;
   setMsg(`logoMsg-${i}`, '', '');
   try {
-    if (!logoPath) throw new Error('No logos found in the logos/ folder.');
-    const logoImg = await loadImage('../' + logoPath);
-    const canvas = makeQrCanvas(CFG.base + c.slug + '/', 'H', logoImg);
+    const cfg = currentStyleConfig(`re${i}`);
+    const logoChoice = document.getElementById(`re${i}Logo`).value;
+    const logoImg = logoChoice ? await loadImage('../' + logoChoice) : null;
+    const qrUrl = CFG.base + c.slug + '/';
+    const canvas = drawStyledQr(qrUrl, cfg.styleId, cfg.palette, logoImg);
+    if (cfg.styleId !== 'classic' && cfg.custom && scanCheck(canvas) !== qrUrl)
+      throw new Error('These colors are too light for scanners — darken them.');
     let sha;
     try { sha = (await getFile(c.qrPath)).sha; } catch (e) { /* new file */ }
-    await putFile(c.qrPath, canvasBase64(canvas), `redirect: add logo QR for ${c.slug}`, sha);
-    setMsg(`logoMsg-${i}`, 'New logo QR saved — shown below. It replaces the old image but scans to the same link.', 'ok');
+    await putFile(c.qrPath, canvasBase64(canvas), `redirect: restyle QR for ${c.slug}`, sha);
+    setMsg(`logoMsg-${i}`, 'New QR image saved — shown below. It replaces the old image but scans to the same link.', 'ok');
     const box = document.getElementById(`qr-${i}`);
     box.innerHTML = '';
     box.appendChild(canvas);
@@ -471,9 +519,27 @@ async function boot() {
     document.getElementById('list').innerHTML = `<div class="err">Could not load campaigns: ${err.message}</div>`;
   }
 }
+document.getElementById('newStyle').addEventListener('change', e => {
+  const styled = e.target.value !== 'classic';
+  document.getElementById('newPaletteWrap').hidden = !styled;
+  if (styled) {
+    populatePalette(document.getElementById('newPalette'), e.target.value);
+    document.getElementById('newCustomWrap').hidden = true;
+  }
+  refreshPreview();
+});
+document.getElementById('newPalette').addEventListener('change', e => {
+  document.getElementById('newCustomWrap').hidden = e.target.value !== '@custom';
+  refreshPreview();
+});
+for (const id of ['newC1', 'newC2', 'newC3'])
+  document.getElementById(id).addEventListener('input', refreshPreview);
+document.getElementById('newSlug').addEventListener('input', refreshPreview);
 document.getElementById('newLogo').addEventListener('change', e => {
   document.getElementById('newLogoFile').hidden = e.target.value !== '@upload';
+  refreshPreview();
 });
+document.getElementById('newLogoFile').addEventListener('change', refreshPreview);
 boot();
 </script>
 </body>

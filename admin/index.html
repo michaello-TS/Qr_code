@@ -98,6 +98,16 @@
     <div id="list"></div>
   </div>
 
+  <!-- ============ SHARE ACCESS ============ -->
+  <div id="share" class="card" hidden>
+    <h2>Open on another device / share with a colleague</h2>
+    <p class="hint">This makes a special link with your key hidden inside — open it once on any device (or send it to a trusted colleague) and that browser is connected, no typing needed.</p>
+    <p class="hint"><b>Treat the link like a key to the office:</b> anyone who has it can change where your QR codes point. Share it only in private (AirDrop / password manager), and if it ever leaks, delete the "QR panel" token on GitHub to lock everyone out.</p>
+    <button class="secondary" onclick="copyShareLink()">Copy the link</button>
+    <div id="shareMsg"></div>
+    <input type="text" id="shareLink" readonly hidden style="margin-top:10px" onclick="this.select()">
+  </div>
+
   <div class="footer">
     <button onclick="changeToken()">Change GitHub key</button>
   </div>
@@ -112,6 +122,18 @@ const CFG = {
   base: 'https://michaello-ts.github.io/Qr_code/',
 };
 let TOKEN = localStorage.getItem('qr_admin_token') || '';
+
+// Bookmarkable link support: .../admin/#key=github_pat_...
+// The #key part never leaves the browser (fragments aren't sent to servers).
+// We save it, then wipe it from the address bar so it isn't shoulder-surfed.
+{
+  const m = location.hash.match(/[#&]key=([^&]+)/);
+  if (m) {
+    TOKEN = decodeURIComponent(m[1]);
+    localStorage.setItem('qr_admin_token', TOKEN);
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+}
 let TREE = [];        // full repo file list
 let LOGOS = [];       // paths under logos/
 let CAMPAIGNS = [];   // {slug, dest, qrPath}
@@ -418,11 +440,27 @@ function changeToken() {
   TOKEN = '';
   boot();
 }
+async function copyShareLink() {
+  const link = location.origin + location.pathname + '#key=' + encodeURIComponent(TOKEN);
+  const box = document.getElementById('shareLink');
+  try {
+    await navigator.clipboard.writeText(link);
+    setMsg('shareMsg', 'Copied! Paste it somewhere private (AirDrop, password manager, direct message).', 'ok');
+    box.hidden = true;
+  } catch (e) {
+    // Clipboard blocked — show the link so it can be copied by hand.
+    box.value = link;
+    box.hidden = false;
+    box.select();
+    setMsg('shareMsg', 'Copy the link from the box below.', 'ok');
+  }
+}
 async function boot() {
   const hasToken = !!TOKEN;
   document.getElementById('setup').hidden = hasToken;
   document.getElementById('create').hidden = !hasToken;
   document.getElementById('listCard').hidden = !hasToken;
+  document.getElementById('share').hidden = !hasToken;
   if (!hasToken) return;
   try {
     await loadAll();

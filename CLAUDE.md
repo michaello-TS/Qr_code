@@ -79,7 +79,9 @@ Replace `TARGET_URL_HERE` with the actual destination URL.
 logo QR codes — no terminal, no Claude session needed. It lives in `admin/`
 (`index.html` + bundled `qrcode.js`), talks to the GitHub API with a fine-grained
 personal access token (Contents read/write on this repo only) stored in the
-browser's localStorage, and draws QR images on a canvas using the same recipe as
+browser's localStorage (the token can also be handed to a new device via a
+bookmarkable `.../admin/#key=<token>` link — the "share access" card on the
+panel generates it), and draws QR images on a canvas using the same recipe as
 `make-logo-qr.py` (ERROR_CORRECT_H + logo at ~22% on a white rounded badge).
 It uses the same commit-message format as the scripts.
 
@@ -136,8 +138,7 @@ Current campaigns (see the admin panel for the live list): fb-kolour, fb-scsp,
 henderson-summer2026, henderson-summer2026/kyl, henderson-summer2026/scsp,
 ig-kolour, ig-scsp, lucky-draw, summer-offers-ktw, summer-offers-kyl,
 summer-offers-scsp, tenant-collab-ktw, tenant-collab-kyl, tenant-collab-scsp,
-xhs-kolour, xhs-scsp. (`test-panel` is a leftover test campaign from building
-the admin panel — safe to delete.)
+xhs-kolour, xhs-scsp.
 
 Note: the two `henderson-summer2026/...` campaigns are nested inside another
 campaign's folder (made by hand before the flat one-folder-per-campaign rule

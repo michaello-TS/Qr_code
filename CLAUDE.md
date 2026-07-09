@@ -85,6 +85,15 @@ panel generates it), and draws QR images on a canvas using the same recipe as
 `make-logo-qr.py` (ERROR_CORRECT_H + logo at ~22% on a white rounded badge).
 It uses the same commit-message format as the scripts.
 
+The panel also offers **styled QR codes** (added 2026-07-09, spec in
+`docs/superpowers/specs/`): Social gradient (gradient body + accent corner
+eyes) and Multi-color artwork fill, each with 6 preset palettes plus custom
+color pickers, combinable with any logo, with a live preview. The drawing
+engine is `admin/qr-styles.js`; `admin/jsQR.js` (vendored) scan-tests every
+styled QR in the browser before upload and blocks custom colors that are too
+light to scan. "Restyle QR" on any campaign replaces its image without
+changing the campaign URL.
+
 The original helper scripts still work as a fallback (run them from the project folder):
 
 | Script | What it does |
@@ -112,7 +121,8 @@ do not.
 |--------|--------|---------|
 | New campaign | `redirect: add [slug]` | `redirect: add summer-sale` |
 | Update destination | `redirect: update [slug]` | `redirect: update summer-sale` |
-| Logo QR | `redirect: add logo QR for [slug]` | `redirect: add logo QR for summer-sale` |
+| Logo QR (legacy script) | `redirect: add logo QR for [slug]` | `redirect: add logo QR for summer-sale` |
+| Restyle QR (panel) | `redirect: restyle QR for [slug]` | `redirect: restyle QR for summer-sale` |
 
 ---
 

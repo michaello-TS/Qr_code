@@ -74,7 +74,16 @@ Replace `TARGET_URL_HERE` with the actual destination URL.
 
 ## Generating QR Codes
 
-Three helper scripts handle everything (run them from the project folder):
+**Preferred: the web control panel.** Open `https://michaello-TS.github.io/Qr_code/admin/`
+(works on phone or laptop). It can create campaigns, change destinations, and make
+logo QR codes — no terminal, no Claude session needed. It lives in `admin/`
+(`index.html` + bundled `qrcode.js`), talks to the GitHub API with a fine-grained
+personal access token (Contents read/write on this repo only) stored in the
+browser's localStorage, and draws QR images on a canvas using the same recipe as
+`make-logo-qr.py` (ERROR_CORRECT_H + logo at ~22% on a white rounded badge).
+It uses the same commit-message format as the scripts.
+
+The original helper scripts still work as a fallback (run them from the project folder):
 
 | Script | What it does |
 |--------|--------------|
@@ -121,9 +130,18 @@ Point the QR code to the campaign URL — never to the final destination directl
 
 Base: `https://michaello-TS.github.io/Qr_code/`
 
-| Campaign Slug | QR Code URL |
-|---------------|-------------|
-| henderson-summer2026 | `https://michaello-TS.github.io/Qr_code/henderson-summer2026/` |
+Every campaign folder follows the same pattern: `https://michaello-TS.github.io/Qr_code/[slug]/`
+
+Current campaigns (see the admin panel for the live list): fb-kolour, fb-scsp,
+henderson-summer2026, henderson-summer2026/kyl, henderson-summer2026/scsp,
+ig-kolour, ig-scsp, lucky-draw, summer-offers-ktw, summer-offers-kyl,
+summer-offers-scsp, tenant-collab-ktw, tenant-collab-kyl, tenant-collab-scsp,
+xhs-kolour, xhs-scsp. (`test-panel` is a leftover test campaign from building
+the admin panel — safe to delete.)
+
+Note: the two `henderson-summer2026/...` campaigns are nested inside another
+campaign's folder (made by hand before the flat one-folder-per-campaign rule
+settled). They work fine; don't create new nested ones.
 
 ## INVARIANTS (never break these)
 - QR codes point to GitHub Pages URLs, never to final destination URLs

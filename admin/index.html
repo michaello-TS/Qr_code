@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>QR Campaign Manager</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▣</text></svg>">
+<script src="qrcode.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f2f4f7; color: #1a202c;
+  }
+  .wrap { max-width: 580px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 8px 0 16px; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  .card {
+    background: #fff; border-radius: 12px; padding: 16px;
+    margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 4px; color: #4a5568; }
+  input[type=text], input[type=url], input[type=password], select {
+    width: 100%; padding: 12px; font-size: 16px;
+    border: 1px solid #cbd5e0; border-radius: 8px; background: #fff;
+  }
+  input:focus, select:focus { outline: 2px solid #3182ce; border-color: #3182ce; }
+  button {
+    padding: 12px 18px; font-size: 15px; font-weight: 600;
+    border: none; border-radius: 8px; cursor: pointer;
+    background: #2b6cb0; color: #fff; margin-top: 12px;
+  }
+  button.secondary { background: #e2e8f0; color: #2d3748; }
+  button.small { padding: 8px 12px; font-size: 13px; margin: 6px 6px 0 0; }
+  button:disabled { opacity: .5; cursor: default; }
+  .hint { font-size: 13px; color: #718096; margin: 6px 0 0; }
+  .err { color: #c53030; font-size: 14px; margin-top: 10px; white-space: pre-wrap; }
+  .ok  { color: #276749; font-size: 14px; margin-top: 10px; }
+  .campaign { border-top: 1px solid #edf2f7; padding: 12px 0; }
+  .campaign:first-of-type { border-top: none; }
+  .slug { font-weight: 700; font-size: 15px; }
+  .dest { font-size: 13px; color: #4a5568; word-break: break-all; margin-top: 2px; }
+  .dest a { color: #2b6cb0; text-decoration: none; }
+  .qrbox { text-align: center; margin-top: 12px; }
+  .qrbox canvas, .qrbox img { max-width: 240px; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; }
+  .inline-form { background: #f7fafc; border-radius: 8px; padding: 4px 12px 12px; margin-top: 10px; }
+  ol { padding-left: 20px; font-size: 14px; line-height: 1.6; }
+  ol a { color: #2b6cb0; }
+  .footer { text-align: center; margin: 20px 0; }
+  .footer button { background: none; color: #718096; font-weight: 400; font-size: 13px; text-decoration: underline; padding: 4px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #ebf8ff; color: #2b6cb0; margin-left: 6px; vertical-align: 1px; }
+  #loading { text-align: center; color: #718096; padding: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>▣ QR Campaign Manager</h1>
+
+  <!-- ============ SETUP (no key yet) ============ -->
+  <div id="setup" class="card" hidden>
+    <h2>One-time setup: connect to GitHub</h2>
+    <p class="hint" style="margin-bottom:10px">This page needs a GitHub access key so it can save campaigns to your repo. You create the key once — it stays only in this browser.</p>
+    <ol>
+      <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → new fine-grained token</a> (log in as <b>michaello-TS</b>)</li>
+      <li><b>Token name:</b> "QR panel" · <b>Expiration:</b> pick <b>Custom</b> and set it ~1 year out</li>
+      <li><b>Repository access:</b> "Only select repositories" → choose <b>Qr_code</b></li>
+      <li><b>Permissions → Repository permissions → Contents:</b> set to <b>Read and write</b></li>
+      <li>Click <b>Generate token</b>, copy it, and paste it below</li>
+    </ol>
+    <label for="tokenInput">Paste your key</label>
+    <input type="password" id="tokenInput" placeholder="github_pat_...">
+    <button onclick="saveToken()">Save & connect</button>
+    <div id="setupErr" class="err"></div>
+  </div>
+
+  <!-- ============ NEW CAMPAIGN ============ -->
+  <div id="create" class="card" hidden>
+    <h2>New campaign</h2>
+    <label for="newSlug">Campaign name (becomes the QR link — can't change later)</label>
+    <input type="text" id="newSlug" placeholder="e.g. summer-sale" autocapitalize="off" autocorrect="off">
+    <p class="hint">Lowercase letters, numbers and hyphens only.</p>
+    <label for="newDest">Where should it send people? (you can change this anytime)</label>
+    <input type="url" id="newDest" placeholder="https://...">
+    <label for="newLogo">QR style</label>
+    <select id="newLogo"><option value="">Plain black & white</option></select>
+    <input type="file" id="newLogoFile" accept="image/png,image/jpeg,image/webp" hidden style="margin-top:8px">
+    <button id="createBtn" onclick="createCampaign()">Create campaign & QR code</button>
+    <div id="createMsg"></div>
+    <div id="createQr" class="qrbox"></div>
+  </div>
+
+  <!-- ============ CAMPAIGN LIST ============ -->
+  <div id="listCard" class="card" hidden>
+    <h2>Your campaigns <span id="count" class="badge"></span></h2>
+    <div id="loading">Loading campaigns…</div>
+    <div id="list"></div>
+  </div>
+
+  <div class="footer">
+    <button onclick="changeToken()">Change GitHub key</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+const CFG = {
+  owner: 'michaello-TS',
+  repo: 'Qr_code',
+  branch: 'main',
+  base: 'https://michaello-ts.github.io/Qr_code/',
+};
+let TOKEN = localStorage.getItem('qr_admin_token') || '';
+let TREE = [];        // full repo file list
+let LOGOS = [];       // paths under logos/
+let CAMPAIGNS = [];   // {slug, dest, qrPath}
+
+// ---------- GitHub API ----------
+async function gh(path, opts = {}) {
+  const res = await fetch('https://api.github.com' + path, {
+    ...opts,
+    headers: {
+      'Authorization': 'Bearer ' + TOKEN,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+  if (!res.ok) {
+    let msg = 'HTTP ' + res.status;
+    try { msg = (await res.json()).message || msg; } catch (e) {}
+    if (res.status === 401) msg = 'GitHub rejected the key (it may have expired). ' + msg;
+    throw new Error(msg);
+  }
+  return res.json();
+}
+const encPath = p => p.split('/').map(encodeURIComponent).join('/');
+const b64encode = s => btoa(unescape(encodeURIComponent(s)));
+const b64decode = s => decodeURIComponent(escape(atob(s.replace(/\s/g, ''))));
+
+async function putFile(path, base64Content, message, sha) {
+  const body = { message, content: base64Content, branch: CFG.branch };
+  if (sha) body.sha = sha;
+  return gh(`/repos/${CFG.owner}/${CFG.repo}/contents/${encPath(path)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+async function getFile(path) {
+  return gh(`/repos/${CFG.owner}/${CFG.repo}/contents/${encPath(path)}?ref=${CFG.branch}`);
+}
+
+// ---------- redirect page template (meta refresh — required format) ----------
+function redirectHtml(url) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=${url}">
+  <script>window.location.replace("${url}");<\/script>
+  <title>Redirecting...</title>
+</head>
+<body>
+  <p>Redirecting... <a href="${url}">Click here if not redirected.</a></p>
+</body>
+</html>
+`;
+}
+
+// ---------- QR drawing (matches make-logo-qr.py: EC-H + logo ~22% on white rounded badge) ----------
+function makeQrCanvas(url, ecLevel, logoImg) {
+  const qr = qrcode(0, ecLevel);
+  qr.addData(url);
+  qr.make();
+  const n = qr.getModuleCount(), box = 10, border = 4;
+  const size = (n + border * 2) * box;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#000';
+  for (let r = 0; r < n; r++)
+    for (let col = 0; col < n; col++)
+      if (qr.isDark(r, col))
+        ctx.fillRect((border + col) * box, (border + r) * box, box, box);
+
+  if (logoImg) {
+    const target = Math.floor(size * 0.22);
+    const scale = Math.min(target / logoImg.width, target / logoImg.height, 1);
+    const lw = Math.round(logoImg.width * scale), lh = Math.round(logoImg.height * scale);
+    const pad = Math.max(6, Math.round(target * 0.16));
+    const bw = lw + pad * 2, bh = lh + pad * 2;
+    const bx = (size - bw) / 2, by = (size - bh) / 2;
+    const rad = Math.round(Math.min(bw, bh) * 0.22);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, rad);
+    ctx.fill();
+    ctx.drawImage(logoImg, bx + pad, by + pad, lw, lh);
+  }
+  return c;
+}
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not load logo image: ' + src));
+    img.src = src;
+  });
+}
+async function logoImageFor(choice) {
+  // choice: '' = none, '@upload' = local file, otherwise a repo path like logos/instagram.png
+  if (!choice) return null;
+  if (choice === '@upload') {
+    const f = document.getElementById('newLogoFile').files[0];
+    if (!f) throw new Error('Pick a logo image file first.');
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = () => rej(new Error('Could not read that file.'));
+      r.readAsDataURL(f);
+    });
+    return loadImage(dataUrl);
+  }
+  return loadImage('../' + choice); // same-origin on GitHub Pages
+}
+function canvasBase64(c) {
+  return c.toDataURL('image/png').split(',')[1];
+}
+
+// ---------- load & render ----------
+async function loadAll() {
+  document.getElementById('loading').hidden = false;
+  document.getElementById('list').innerHTML = '';
+  const t = await gh(`/repos/${CFG.owner}/${CFG.repo}/git/trees/${encodeURIComponent(CFG.branch)}?recursive=1`);
+  TREE = t.tree;
+
+  LOGOS = TREE.filter(e => e.type === 'blob' && /^logos\/.+\.(png|jpe?g|webp)$/i.test(e.path)).map(e => e.path);
+  const logoSel = document.getElementById('newLogo');
+  logoSel.innerHTML = '<option value="">Plain black & white</option>' +
+    LOGOS.map(p => `<option value="${p}">Logo in center: ${p.replace(/^logos\//, '').replace(/\.[^.]+$/, '')}</option>`).join('') +
+    '<option value="@upload">Logo in center: upload from this device…</option>';
+
+  const qrSet = new Set(TREE.filter(e => /^qr-codes\/.+\.png$/.test(e.path)).map(e => e.path));
+  const pages = TREE.filter(e =>
+    e.type === 'blob' && e.path.endsWith('/index.html') && !e.path.startsWith('admin/'));
+
+  CAMPAIGNS = await Promise.all(pages.map(async e => {
+    const slug = e.path.slice(0, -'/index.html'.length);
+    let dest = '';
+    try {
+      const blob = await gh(`/repos/${CFG.owner}/${CFG.repo}/git/blobs/${e.sha}`);
+      const m = b64decode(blob.content).match(/url=([^"']+)["']/i);
+      dest = m ? m[1] : '';
+    } catch (err) { /* leave dest blank */ }
+    // QR image: usually qr-codes/qr-<slug>.png; older nested campaigns used the last name part
+    const candidates = [
+      `qr-codes/qr-${slug.replace(/\//g, '-')}.png`,
+      `qr-codes/qr-${slug.split('/').pop()}.png`,
+    ];
+    const qrPath = candidates.find(p => qrSet.has(p)) || candidates[0];
+    return { slug, dest, qrPath, hasQr: qrSet.has(qrPath) };
+  }));
+  CAMPAIGNS.sort((a, b) => a.slug.localeCompare(b.slug));
+  renderList();
+}
+
+function renderList() {
+  document.getElementById('loading').hidden = true;
+  document.getElementById('count').textContent = CAMPAIGNS.length;
+  const html = CAMPAIGNS.map((c, i) => `
+    <div class="campaign" id="camp-${i}">
+      <div class="slug">${c.slug}</div>
+      <div class="dest">sends people to → <a href="${c.dest}" target="_blank" rel="noopener">${c.dest || '(unknown)'}</a></div>
+      <div class="dest">QR link: <a href="${CFG.base + c.slug}/" target="_blank" rel="noopener">${CFG.base + c.slug}/</a></div>
+      <button class="small secondary" onclick="toggleEdit(${i})">Change destination</button>
+      <button class="small secondary" onclick="toggleLogo(${i})">New logo QR</button>
+      ${c.hasQr ? `<button class="small secondary" onclick="showQr(${i})">View QR</button>` : ''}
+      <div id="edit-${i}" class="inline-form" hidden>
+        <label>New destination for <b>${c.slug}</b> (QR code stays the same)</label>
+        <input type="url" id="editUrl-${i}" placeholder="https://..." value="${c.dest}">
+        <button class="small" onclick="updateDest(${i})">Save change</button>
+        <div id="editMsg-${i}"></div>
+      </div>
+      <div id="logo-${i}" class="inline-form" hidden>
+        <label>Remake this campaign's QR image with a logo in the center</label>
+        <select id="logoSel-${i}">${LOGOS.map(p => `<option value="${p}">${p.replace(/^logos\//, '').replace(/\.[^.]+$/, '')}</option>`).join('')}</select>
+        <button class="small" onclick="makeLogoQr(${i})">Make logo QR</button>
+        <div id="logoMsg-${i}"></div>
+      </div>
+      <div id="qr-${i}" class="qrbox" hidden></div>
+    </div>`).join('');
+  document.getElementById('list').innerHTML = html || '<p class="hint">No campaigns yet — create your first one above.</p>';
+}
+
+function toggleEdit(i) { toggle(`edit-${i}`); document.getElementById(`logo-${i}`).hidden = true; }
+function toggleLogo(i) { toggle(`logo-${i}`); document.getElementById(`edit-${i}`).hidden = true; }
+function toggle(id) { const el = document.getElementById(id); el.hidden = !el.hidden; }
+
+function showQr(i) {
+  const c = CAMPAIGNS[i];
+  const box = document.getElementById(`qr-${i}`);
+  if (!box.hidden) { box.hidden = true; return; }
+  box.innerHTML = `<img src="../${c.qrPath}" alt="QR for ${c.slug}">
+    <br><a href="../${c.qrPath}" download="qr-${c.slug.replace(/\//g, '-')}.png"><button class="small secondary">Download PNG</button></a>`;
+  box.hidden = false;
+}
+
+// ---------- actions ----------
+function setMsg(id, text, cls) {
+  document.getElementById(id).innerHTML = text ? `<div class="${cls}">${text}</div>` : '';
+}
+
+async function createCampaign() {
+  const slug = document.getElementById('newSlug').value.trim();
+  const dest = document.getElementById('newDest').value.trim();
+  const logoChoice = document.getElementById('newLogo').value;
+  const btn = document.getElementById('createBtn');
+  setMsg('createMsg', '', '');
+  document.getElementById('createQr').innerHTML = '';
+  try {
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug))
+      throw new Error('Campaign name must be lowercase letters, numbers and hyphens only (e.g. summer-sale).');
+    if (!/^https?:\/\/.+/.test(dest))
+      throw new Error('Destination must be a full link starting with https://');
+    if (TREE.some(e => e.path === slug + '/index.html' || e.path.startsWith(slug + '/')))
+      throw new Error(`"${slug}" already exists. Use "Change destination" on it below instead.`);
+
+    btn.disabled = true; btn.textContent = 'Creating…';
+    const qrUrl = CFG.base + slug + '/';
+    const logoImg = await logoImageFor(logoChoice);
+    const canvas = makeQrCanvas(qrUrl, logoImg ? 'H' : 'M', logoImg);
+
+    await putFile(`${slug}/index.html`, b64encode(redirectHtml(dest)), `redirect: add ${slug}`);
+    await putFile(`qr-codes/qr-${slug}.png`, canvasBase64(canvas), `redirect: add ${slug}`);
+
+    setMsg('createMsg', `Done! <b>${slug}</b> is saved. The QR below is ready to use right now — ` +
+      `it points to <a href="${qrUrl}" target="_blank" rel="noopener">${qrUrl}</a> ` +
+      `(live on the web in about a minute).`, 'ok');
+    const box = document.getElementById('createQr');
+    box.appendChild(canvas);
+    const dl = document.createElement('a');
+    dl.href = canvas.toDataURL('image/png');
+    dl.download = `qr-${slug}.png`;
+    dl.innerHTML = '<br><button class="small secondary">Download PNG</button>';
+    box.appendChild(dl);
+    document.getElementById('newSlug').value = '';
+    document.getElementById('newDest').value = '';
+    document.getElementById('newLogo').value = '';
+    document.getElementById('newLogoFile').hidden = true;
+    // GitHub's file listing lags a few seconds behind new commits,
+    // so add the new campaign to the list locally instead of re-fetching.
+    TREE.push({ path: `${slug}/index.html`, type: 'blob' });
+    CAMPAIGNS.push({ slug, dest, qrPath: `qr-codes/qr-${slug}.png`, hasQr: true });
+    CAMPAIGNS.sort((a, b) => a.slug.localeCompare(b.slug));
+    renderList();
+  } catch (err) {
+    setMsg('createMsg', err.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create campaign & QR code';
+  }
+}
+
+async function updateDest(i) {
+  const c = CAMPAIGNS[i];
+  const url = document.getElementById(`editUrl-${i}`).value.trim();
+  setMsg(`editMsg-${i}`, '', '');
+  try {
+    if (!/^https?:\/\/.+/.test(url))
+      throw new Error('Destination must be a full link starting with https://');
+    const f = await getFile(`${c.slug}/index.html`);
+    await putFile(`${c.slug}/index.html`, b64encode(redirectHtml(url)), `redirect: update ${c.slug}`, f.sha);
+    setMsg(`editMsg-${i}`, 'Saved. The QR code now sends people to the new link (live in about a minute).', 'ok');
+    c.dest = url;
+    setTimeout(renderList, 1500);
+  } catch (err) {
+    setMsg(`editMsg-${i}`, err.message, 'err');
+  }
+}
+
+async function makeLogoQr(i) {
+  const c = CAMPAIGNS[i];
+  const logoPath = document.getElementById(`logoSel-${i}`).value;
+  setMsg(`logoMsg-${i}`, '', '');
+  try {
+    if (!logoPath) throw new Error('No logos found in the logos/ folder.');
+    const logoImg = await loadImage('../' + logoPath);
+    const canvas = makeQrCanvas(CFG.base + c.slug + '/', 'H', logoImg);
+    let sha;
+    try { sha = (await getFile(c.qrPath)).sha; } catch (e) { /* new file */ }
+    await putFile(c.qrPath, canvasBase64(canvas), `redirect: add logo QR for ${c.slug}`, sha);
+    setMsg(`logoMsg-${i}`, 'New logo QR saved — shown below. It replaces the old image but scans to the same link.', 'ok');
+    const box = document.getElementById(`qr-${i}`);
+    box.innerHTML = '';
+    box.appendChild(canvas);
+    const dl = document.createElement('a');
+    dl.href = canvas.toDataURL('image/png');
+    dl.download = `qr-${c.slug.replace(/\//g, '-')}.png`;
+    dl.innerHTML = '<br><button class="small secondary">Download PNG</button>';
+    box.appendChild(dl);
+    box.hidden = false;
+  } catch (err) {
+    setMsg(`logoMsg-${i}`, err.message, 'err');
+  }
+}
+
+// ---------- token handling ----------
+function saveToken() {
+  const t = document.getElementById('tokenInput').value.trim();
+  if (!t) { document.getElementById('setupErr').textContent = 'Paste the key first.'; return; }
+  TOKEN = t;
+  localStorage.setItem('qr_admin_token', t);
+  boot();
+}
+function changeToken() {
+  localStorage.removeItem('qr_admin_token');
+  TOKEN = '';
+  boot();
+}
+async function boot() {
+  const hasToken = !!TOKEN;
+  document.getElementById('setup').hidden = hasToken;
+  document.getElementById('create').hidden = !hasToken;
+  document.getElementById('listCard').hidden = !hasToken;
+  if (!hasToken) return;
+  try {
+    await loadAll();
+  } catch (err) {
+    document.getElementById('loading').hidden = true;
+    document.getElementById('list').innerHTML = `<div class="err">Could not load campaigns: ${err.message}</div>`;
+  }
+}
+document.getElementById('newLogo').addEventListener('change', e => {
+  document.getElementById('newLogoFile').hidden = e.target.value !== '@upload';
+});
+boot();
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Usage: ./update-redirect.sh [slug] [new-url]
-# Example: ./update-redirect.sh henderson-summer2026 https://example.com/new-page
+# Example: ./update-redirect.sh henderson-summer2026 'https://example.com/new-page'
+# Tip: leave the link off and the script asks you to paste it.
 
 set -euo pipefail
 
@@ -10,11 +11,18 @@ cd "$(dirname "$0")" || exit 1
 SLUG=${1:-}
 NEW_URL=${2:-}
 
+# No link given? Ask for it. Pasting it here is safer than typing it on the
+# command line, where characters like & and ? in the link get mangled.
+if [ -n "$SLUG" ] && [ -z "$NEW_URL" ]; then
+  read -r -p "Paste the destination link and press Enter: " NEW_URL || true
+fi
+
 # Check arguments
 if [ -z "$SLUG" ] || [ -z "$NEW_URL" ]; then
   echo ""
   echo "Usage: ./update-redirect.sh [slug] [new-url]"
-  echo "Example: ./update-redirect.sh henderson-summer2026 https://example.com/new-page"
+  echo "Example: ./update-redirect.sh henderson-summer2026 'https://example.com/new-page'"
+  echo "(Leave the link off to be asked for it.)"
   echo ""
   exit 1
 fi
@@ -45,12 +53,17 @@ if ! git pull --ff-only; then
   exit 1
 fi
 
-# Check folder exists
-if [ ! -d "$SLUG" ]; then
+# Must be an existing campaign: same naming rule as the panel (one level of
+# nesting allowed for the two legacy henderson-summer2026/... campaigns) and a
+# folder whose index.html is a redirect page — so names like ../x or admin
+# can't touch anything else.
+case "${SLUG%%/*}" in admin|logos|qr-codes|docs) SLUG="" ;; esac   # never the panel's own folders
+if ! [[ "$SLUG" =~ ^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)?$ ]] ||
+   ! grep -qs 'http-equiv="refresh"' "$SLUG/index.html"; then
   echo ""
-  echo "Campaign folder '$SLUG' not found."
+  echo "Campaign '$1' not found."
   echo "Available campaigns:"
-  ls -d */ 2>/dev/null | grep -v -e "^\." | sed 's/\///'
+  grep -ls 'http-equiv="refresh"' ./*/index.html ./*/*/index.html | sed 's#^\./##; s#/index\.html$##; s#^#  #' || true
   echo ""
   exit 1
 fi

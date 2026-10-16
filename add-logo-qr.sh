@@ -15,6 +15,19 @@ cd "$(dirname "$0")" || exit 1
 SLUG=${1:-}
 LOGO=${2:-}
 
+# Print the logos/ folder's image names (without extension), or a fallback line
+list_logos() {
+  local f found=""
+  shopt -s nullglob nocaseglob
+  for f in logos/*.png logos/*.jpg logos/*.jpeg logos/*.webp; do
+    f=${f#logos/}
+    echo "  ${f%.*}"
+    found=1
+  done
+  shopt -u nullglob nocaseglob
+  [ -n "$found" ] || echo "  $1"
+}
+
 # Check arguments
 if [ -z "$SLUG" ] || [ -z "$LOGO" ]; then
   echo ""
@@ -22,7 +35,7 @@ if [ -z "$SLUG" ] || [ -z "$LOGO" ]; then
   echo "Example: ./add-logo-qr.sh henderson-summer2026 instagram"
   echo ""
   echo "Available logos:"
-  ls logos/ 2>/dev/null | grep -iE '\.(png|jpg|jpeg|webp)$' | sed 's/\.[^.]*$//' | sed 's/^/  /' || echo "  (none yet — add some to the logos/ folder)"
+  list_logos "(none yet — add some to the logos/ folder)"
   echo ""
   exit 1
 fi
@@ -79,7 +92,7 @@ if [ -z "$LOGO_FILE" ]; then
   echo "Logo '$LOGO' not found in the logos/ folder."
   echo ""
   echo "Available logos:"
-  ls logos/ 2>/dev/null | grep -iE '\.(png|jpg|jpeg|webp)$' | sed 's/\.[^.]*$//' | sed 's/^/  /' || echo "  (none yet)"
+  list_logos "(none yet)"
   echo ""
   exit 1
 fi

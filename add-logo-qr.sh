@@ -7,11 +7,13 @@
 # This replaces that campaign's qr-codes/qr-[slug].png with the logo version and
 # pushes it to GitHub. The campaign URL the QR points to does NOT change.
 
-# Always run from the project folder, no matter where you call this from
-cd "$(dirname "$0")"
+set -euo pipefail
 
-SLUG=$1
-LOGO=$2
+# Always run from the project folder, no matter where you call this from
+cd "$(dirname "$0")" || exit 1
+
+SLUG=${1:-}
+LOGO=${2:-}
 
 # Check arguments
 if [ -z "$SLUG" ] || [ -z "$LOGO" ]; then
@@ -21,6 +23,15 @@ if [ -z "$SLUG" ] || [ -z "$LOGO" ]; then
   echo ""
   echo "Available logos:"
   ls logos/ 2>/dev/null | grep -iE '\.(png|jpg|jpeg|webp)$' | sed 's/\.[^.]*$//' | sed 's/^/  /' || echo "  (none yet — add some to the logos/ folder)"
+  echo ""
+  exit 1
+fi
+
+# Get any changes made from the web panel first, so our push isn't refused
+eval "$(/opt/homebrew/bin/brew shellenv)"
+if ! git pull --ff-only; then
+  echo ""
+  echo "Couldn't sync with GitHub first — nothing was changed."
   echo ""
   exit 1
 fi
@@ -70,8 +81,7 @@ if [ -f "$OUT" ]; then
 fi
 
 # Generate the logo QR
-python3 make-logo-qr.py "$QR_URL" "$LOGO_FILE" "$OUT"
-if [ $? -ne 0 ]; then
+if ! python3 make-logo-qr.py "$QR_URL" "$LOGO_FILE" "$OUT"; then
   echo ""
   echo "QR generation failed. If it's a missing library, run: pip3 install 'qrcode[pil]'"
   echo ""
@@ -82,11 +92,15 @@ echo ""
 echo "Logo QR created: $OUT  (logo: $LOGO_FILE)"
 
 # Git commit and push
-eval "$(/opt/homebrew/bin/brew shellenv)"
 git add "$OUT" "$LOGO_FILE"
 git commit -m "redirect: add logo QR for $SLUG"
-git push
-
-echo ""
-echo "Pushed to GitHub. QR code URL: $QR_URL"
+if git push; then
+  echo ""
+  echo "Pushed to GitHub. QR code URL: $QR_URL"
+else
+  echo ""
+  echo "PUSH FAILED — the change is saved on this Mac only and is NOT live."
+  echo ""
+  exit 1
+fi
 echo ""

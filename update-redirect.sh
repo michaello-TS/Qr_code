@@ -32,7 +32,7 @@ fi
 check_url() {
   case "$1" in
     https://*|http://*) ;;
-    *) echo ""; echo "Destination must be a full link starting with https://"; echo ""; exit 1 ;;
+    *) echo ""; echo "Destination must be a full link starting with https:// (or http://)"; echo ""; exit 1 ;;
   esac
   if printf '%s' "$1" | grep -q '[]["<>\`[:space:]]'; then
     echo ""

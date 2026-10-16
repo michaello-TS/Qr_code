@@ -77,7 +77,7 @@ Replace `TARGET_URL_HERE` with the actual destination URL.
 **Preferred: the web control panel.** Open `https://michaello-TS.github.io/Qr_code/admin/`
 (works on phone or laptop). It can create campaigns, change destinations, and make
 logo QR codes — no terminal, no Claude session needed. It lives in `admin/`
-(`index.html` + bundled `qrcode.js`), talks to the GitHub API with a fine-grained
+(`index.html` page, `app.js` logic, `style.css`, plus vendored `qrcode.js`/`jsQR.js`), talks to the GitHub API with a fine-grained
 personal access token (Contents read/write on this repo only) stored in the
 browser's localStorage (the token can also be handed to a new device via a
 bookmarkable `.../admin/#key=<token>` link — the "share access" card on the
@@ -85,13 +85,21 @@ panel generates it), and draws QR images on a canvas using the same recipe as
 `make-logo-qr.py` (ERROR_CORRECT_H + logo at ~22% on a white rounded badge).
 It uses the same commit-message format as the scripts.
 
+Panel security rules (2026-10 review, `docs/review/`): the page has a strict
+Content-Security-Policy — **no inline `<script>`, no `onclick=`/`onchange=`
+attributes, no `style="..."` attributes**; put code in `admin/app.js` (wire
+buttons with `addEventListener` / `data-act` attributes) and CSS in
+`admin/style.css`. Anything read from the repo or an error goes through `esc()`
+before it touches `innerHTML`, and every typed destination goes through
+`cleanDest()`. Recommended token expiry: 90 days.
+
 The panel also offers **styled QR codes** (added 2026-07-09, spec in
 `docs/superpowers/specs/`): Social gradient (gradient body + accent corner
 eyes) and Multi-color artwork fill, each with 6 preset palettes plus custom
 color pickers, combinable with any logo, with a live preview. The drawing
 engine is `admin/qr-styles.js`; `admin/jsQR.js` (vendored) scan-tests every
-styled QR in the browser before upload and blocks custom colors that are too
-light to scan. "Restyle QR" on any campaign replaces its image without
+QR in the browser before upload and blocks any that don't read back (e.g.
+custom colors that are too light). "Restyle QR" on any campaign replaces its image without
 changing the campaign URL.
 
 The original helper scripts still work as a fallback (run them from the project folder):

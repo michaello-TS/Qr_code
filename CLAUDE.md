@@ -102,6 +102,13 @@ The original helper scripts still work as a fallback (run them from the project 
 | `./update-redirect.sh [slug] [new-url]` | Changes where an existing campaign points (QR stays the same), commits and pushes. |
 | `./add-logo-qr.sh [slug] [logo-name]` | Regenerates a campaign's QR with a **logo in the center** (social-media style), commits and pushes. |
 
+Script safety (added 2026-10): put the link in single quotes, or leave it off and
+the script asks you to paste it (links with `&` or `?` get mangled when typed bare
+on the command line). Each script syncs with GitHub (`git pull --ff-only`) before
+changing anything, refuses links that aren't plain `https://` links and names that
+break the slug rules, and prints "PUSH FAILED … NOT live" instead of "Pushed" if
+the upload didn't work.
+
 All generated QR **images** are stored together in the **`qr-codes/`** folder
 (named `qr-[slug].png`). Each campaign folder holds only its `index.html`
 redirect page — the redirect pages must stay at their own URL paths, the images
